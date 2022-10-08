@@ -1,0 +1,4 @@
+names: [ "airplane" ]
+nc: 1
+train: ./data/FlyingObjectsYOLO/train/images
+val: ./data/FlyingObjectsYOLO/validation/images
