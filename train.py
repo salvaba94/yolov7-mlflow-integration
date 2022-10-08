@@ -456,8 +456,8 @@ def train(hyp, opt, device, tb_writer=None):
 
             mlflow.log_metric("Precision", results[0], step=epoch)
             mlflow.log_metric("Recall", results[1], step=epoch)
-            mlflow.log_metric("mAP.5", results[2], step=epoch)
-            mlflow.log_metric("mAP.5-.95", results[3], step=epoch)
+            mlflow.log_metric("mAP@0.5", results[2], step=epoch)
+            mlflow.log_metric("mAP@0.5-0.95", results[3], step=epoch)
             mloss_cpu = mloss.cpu().numpy()
             mlflow.log_metric("Loss box", mloss_cpu[0], step=epoch)
             mlflow.log_metric("Loss obj", mloss_cpu[1], step=epoch)

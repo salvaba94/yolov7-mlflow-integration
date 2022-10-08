@@ -16,6 +16,7 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 import torch.utils.data
 import yaml
+import mlflow
 from torch.cuda import amp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
@@ -49,6 +50,10 @@ def train(hyp, opt, device, tb_writer=None):
     last = wdir / 'last.pt'
     best = wdir / 'best.pt'
     results_file = save_dir / 'results.txt'
+
+    for opt_key, opt_value in opt.__dict__.items():
+        if opt_value is not None and opt_value != "":
+            mlflow.log_param(opt_key, opt_value)
 
     # Save run settings
     with open(save_dir / 'hyp.yaml', 'w') as f:
@@ -446,6 +451,15 @@ def train(hyp, opt, device, tb_writer=None):
                 best_fitness = fi
             wandb_logger.end_epoch(best_result=best_fitness == fi)
 
+            mlflow.log_metric("Precision", results[0], step=epoch)
+            mlflow.log_metric("Recall", results[1], step=epoch)
+            mlflow.log_metric("mAP@0.5", results[2], step=epoch)
+            mlflow.log_metric("mAP@0.5-0.95", results[3], step=epoch)
+            mloss_cpu = mloss.cpu().numpy()
+            mlflow.log_metric("Loss box", mloss_cpu[0], step=epoch)
+            mlflow.log_metric("Loss obj", mloss_cpu[1], step=epoch)
+            mlflow.log_metric("Loss cls", mloss_cpu[2], step=epoch)
+
             # Save model
             if (not opt.nosave) or (final_epoch and not opt.evolve):  # if save
                 ckpt = {'epoch': epoch,
@@ -474,6 +488,7 @@ def train(hyp, opt, device, tb_writer=None):
                         wandb_logger.log_model(
                             last.parent, opt, epoch, fi, best_model=best_fitness == fi)
                 del ckpt
+                mlflow.log_artifacts(wdir)
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training
@@ -609,7 +624,8 @@ if __name__ == '__main__':
             prefix = colorstr('tensorboard: ')
             logger.info(f"{prefix}Start with 'tensorboard --logdir {opt.project}', view at http://localhost:6006/")
             tb_writer = SummaryWriter(opt.save_dir)  # Tensorboard
-        train(hyp, opt, device, tb_writer)
+        with mlflow.start_run(run_name=opt.name):
+            train(hyp, opt, device, tb_writer)
 
     # Evolve hyperparameters (optional)
     else:
